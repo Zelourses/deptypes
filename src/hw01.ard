@@ -2,6 +2,15 @@
 --    В IDEA можно просто импортировать данный проект
 
 -- 2. Определите аналоги следующих функций на языке Haskell
+\func second (_ y _ : Nat) => y
+
+\func apply (f : Nat -> Nat) (x : Nat) => f x
+
+\func compose (f : Nat -> Nat) (g : Nat -> Nat) (x : Nat) => f (g x)
+
+\func flip (f : Nat -> Nat -> Nat) (x y : Nat) => f y x
+
+\func second' => flip (second 0)
 {- Haskell:
    second :: Nat -> Nat -> Nat -> Nat
    second _ y _ = y
@@ -24,14 +33,18 @@
 
 \func f1 (x y : Nat) => x
 \func f2 : Nat => 0
-\func f3 (f : Nat -> Nat) (z : Nat) : Int => 0
+\func \infixl 5 f3 (f : Nat -> Nat) (z : Nat) : Int => 0
 \func f4 : Nat => 0
-\func f5 => f1
+\func \infixl 6 f5 => f1
 \func f6 => f4
 
 \func test => f1 f2 f3 f4 f5 f6
 
 -- 4. Определите функцию if, аналогичную следующей функции:
+\func if (a b c : Bool) : Bool \elim a
+  | true => b
+  | false => c
+
 {- Haskell:
    if :: Bool -> Bool -> Bool -> Bool
    if True t _ = t
@@ -40,18 +53,72 @@
 
 -- 5. Определите || через if
 
-\func \infixr 2 || (x y : Bool) : Bool => {?}
+\func \infixr 2 || (x y : Bool) : Bool => if x y false
 
 -- 6. Определите возведение в степень и факториал для натуральных чисел
 
 \open Nat \hiding (-, div) -- Здесь лежат + и *
 
-\func \infixr 8 ^ (x y : Nat) => {?}
+\func \infixr 8 ^ (x y : Nat) => powAcc x x y
+  \where {
+    \func powAcc (acc x y : Nat) : Nat \elim y
+      | 0 => 1
+      | 1 => acc
+      | suc y => powAcc (acc * x) x y
+  }
 
-\func fac (x : Nat) => {?}
+\func powTest1 : 2 ^ 0 = 1 => idp
+\func powTest2 : 2 ^ 1 = 2 => idp
+\func powTest3 : 2 ^ 2 = 4 => idp
+\func powTest4 : 2 ^ 3 = 8 => idp
+\func powTest5 : 2 ^ 4 = 16 => idp
+\func powTest6 : 10 ^ 5 = 100000 => idp
+
+\func fac (x : Nat) : Nat \elim x
+  | 0 => 0
+  | 1 => 1
+  | suc x => suc x * fac x
+
+\func facTest1 : fac 0 = 0 => idp
+\func facTest2 : fac 1 = 1 => idp
+\func facTest3 : fac 2 = 2 => idp
+\func facTest4 : fac 3 = 6 => idp
+\func facTest5 : fac 4 = 24 => idp
+\func facTest6 : fac 5 = 120 => idp
 
 -- 7. Определите mod и gcd
+\func if' (cond : Bool) (t f : Nat) : Nat \elim cond
+  | true => t
+  | false => f
 
-\func mod (x y : Nat) => {?}
+\func mod (x y : Nat) : Nat => modFuel x x y
+  \where {
 
-\func gcd (x y : Nat) => {?}
+
+    \func modFuel (fuel x y : Nat) : Nat \elim fuel
+      | 0 => 0
+      | suc fuel => if' (x < y) x (modFuel fuel (x - y) y)
+  }
+
+\func modTest1 : mod 0 10 = 0 => idp
+\func modTest3 : mod 5 2 = 1 => idp
+\func modTest4 : mod 10 3 = 1 => idp
+\func modTest5 : mod 64 64 = 0 => idp
+\func modTest6 : mod 5 4 = 1 => idp
+\func modTest7 : mod 0 0 = 0 => idp
+
+\func eq (x y : Nat) : Bool
+  | 0, 0 => true
+  | 0, _ => false
+  | _, 0 => false
+  | suc x, suc y => eq x y
+
+\func gcd (x y : Nat) => gcdWithFuel x x y
+  \where {
+    \func gcdWithFuel (fuel x y : Nat) : Nat \elim fuel
+      | 0 => 0
+      | suc fuel => if' (eq y 0) x (gcdWithFuel fuel y (x `mod` y))
+  }
+
+\func gcdTest1 : gcd 48 18 = 6 => idp
+\func gcdTest2 : gcd 18 48 = 6 => idp
