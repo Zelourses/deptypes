@@ -1,16 +1,25 @@
+\import Algebra.Meta
 \import Data.List
+\import Function.Meta
+\import Meta
 \import Paths
+\import Paths.Meta
 \import lect03
 \open Nat(+, *)
 
 -- 1. Чему равно fileTest (в нормальной форме)? Докажите это
 
+\func fileTestT : fileTest = (17, 8, 13, 55, 18, 21) => idp
+
 -- 2. Чему равно M5.t''' (в нормальной форме)? Докажите это
+
+\func tT : M5.t''' = ((82, 42, 61, 82, 34, 42,61, 29), 25, (42,29)) => idp
 
 -- 3. Докажите ассоциативность ++
 
-\func ++-assoc {A : \Type} (xs ys zs : List A) : (xs ++ ys) ++ zs = xs ++ (ys ++ zs) => {?}
-
+\func ++-assoc {A : \Type} (xs ys zs : List A) : (xs ++ ys) ++ zs = xs ++ (ys ++ zs) \elim xs
+  | nil => idp
+  | :: a l => pmap (a List.::) (++-assoc _ _ _)
 
 \func sum (xs : List Nat) : Nat
   | nil => 0
@@ -23,29 +32,87 @@
   | :: x xs => reverse xs ++ x :: nil
 
 -- Это утверждение будет полезно для доказательства
-\func sum++ (xs ys : List Nat) : sum (xs ++ ys) = sum xs + sum ys => {?}
+\func sum++ (xs ys : List Nat) : sum (xs ++ ys) = sum xs + sum ys \elim xs
+  | nil => idp
+  | x :: xs =>
+    \have | p1 => pmap (x +) (sum++ xs ys)
+          | p2 => inv (+-assoc x (sum xs) (sum ys))
+          \in p1 *> p2
+--   pmap (x +) $ sum (xs ++ ys) ==< pmap sum idp >== x `qed
 
-\func sum-reverse (xs : List Nat) : sum (reverse xs) = sum xs => {?}
+\func sum-reverse (xs : List Nat) : sum (reverse xs) = sum xs \elim xs
+  | nil => idp
+  | x :: xs =>
+    \have | sum-additivity   : sum (reverse xs ++ x :: nil) = sum (reverse xs) + sum (x :: nil) => sum++ _ _
+          | sum-reverse-less : sum (reverse xs) = sum xs => sum-reverse _
+          | x-sum-xs         : x + sum xs = sum xs + x => +-comm _ _
+          | sum-reverse      : sum (reverse xs) + x = x + sum (reverse xs) => +-comm _ _
+          \in                 -- sum (reverse xs ++ x :: nil) = x + sum xs
+          sum-additivity *>   -- sum (reverse xs) + x = x + sum xs
+          sum-reverse *>      -- x + sum (reverse xs) = x + sum xs
+          pmap (x +) sum-reverse-less -- а почему я просто не могу написать `sum-reverse _` здесь..
+
+
+-- Какие странные ==<
+\func sum-reverse' (xs : List Nat) : sum (reverse xs) = sum xs \elim xs
+  | nil => idp
+  | x :: xs =>
+    sum (reverse xs ++ (x :: nil)) ==< sum++ (reverse xs) (x :: nil) >==
+    sum (reverse xs) + x           ==< +-comm (sum (reverse xs)) x   >==
+    x + sum (reverse xs)           ==< pmap (x +) (sum-reverse' _)   >==
+    x + sum xs
+      `qed
+
 
 -- 5. Докажите дистрибутивность умножения над сложением для натуральных чисел
 
-\func rdistr (n m k : Nat) : (m + k) * n = m * n + k * n => {?}
+\func rdistr (n m k : Nat) : (m + k) * n = m * n + k * n \elim n
+  | 0 => idp
+  | suc n => -- (m + k) * n + (m + k) = m * n + m + (k * n + k)
+    (m + k) * n + (m + k) ==< pmap (\lam x => x + (m + k)) (rdistr _ _ _) >==
+    (m * n + k * n) + (m + k) ==< idp >==
+    m * n + k * n + (m + k) ==< +-assoc (m * n) (k * n) (m + k) >==
+    m * n + (k * n + (m + k)) ==< pmap (\lam x => m * n + x) (+-comm (k * n) (m + k)) >==
+    m * n + ((m + k) + k * n) ==< idp >==
+    m * n + (m + k + k * n) ==< pmap (\lam x => m * n + x) (+-comm-three-vars m k (k * n)) >==
+    m * n + (m + k * n + k) ==< inv (+-assoc (m * n) (m + k * n) k) >==
+    m * n + (m + k * n) + k ==< pmap (`+ k) (inv (+-assoc (m * n) m (k * n))) >==
+    (m * n + m + k * n) + k ==< +-assoc (m * n + m) (k * n) k >==
+    m * n + m + (k * n + k) `qed
 
-\func ldistr (n m k : Nat) : n * (m + k) = n * m + n * k => {?}
+\func +-comm-three-vars (x y z : Nat) : x + y + z = x + z + y =>
+  x + y + z ==< idp >==
+  (x + y) + z ==< +-assoc _ _ _ >==
+  x + (y + z) ==< pmap (x +) (+-comm _ _)>==
+  x + (z + y) ==< inv (+-assoc x z y) >==
+  (x + z) + y ==< idp >==
+  x + z + y `qed
+
+\func ldistr (n m k : Nat) : n * (m + k) = n * m + n * k \elim k
+  | 0 => idp
+  | suc k =>
+    n * (m + k) + n ==< pmap (\lam x => x + n) (ldistr _ _ _) >==
+    (n * m + n * k) + n ==< +-assoc (n * m) ( n * k) n >==
+    n * m + (n * k + n) `qed
+
 
 -- 6. Определите конгруэнтность для функций двух аргументов через transport
 --    Можно использовать любые функции, определенные через transport
 
 \func pmap2 {A B C : \Type} (f : A -> B -> C) {a a' : A} (p : a = a') {b b' : B} (q : b = b')
-  : f a b = f a' b' => {?}
+  : f a b = f a' b' => pmap (f a) q *> transport (\lam x => f a b' = f x b') p idp
 
 -- 7. Докажите, что transport выражается через pmap и repl и наоборот
 
 -- repl говорит, что если у нас есть два равных типа, то у нас есть функция из одного во второй
 -- Определите repl через transport
 
-\func repl {A B : \Type} (p : A = B) (a : A) : B => {?}
+-- почему это работает..
+-- как он понимает, что у x должен быть тип \Type
+\func repl {A B : \Type} (p : A = B) (a : A) : B => transport (\lam x => {?}) p {?}
+
 
 -- Определите transport через repl и pmap
 
-\func transport' {A : \Type} (B : A -> \Type) {a a' : A} (p : a = a') (b : B a) : B a' => {?}
+-- А это почему так классно сработало. Не ожидал
+\func transport' {A : \Type} (B : A -> \Type) {a a' : A} (p : a = a') (b : B a) : B a' => repl (pmap B p) b
