@@ -1,4 +1,9 @@
 \import Data.Bool
+\import Algebra.Meta
+\import Algebra.Monoid
+\import Function.Meta
+\import hw02
+\import lect02 (List, absurd, T, higherOrderFunc', higherOrderFunc'')
 \import lect04
 
 -- 1. Напишите функцию at, которая принимает List A и натуральное число и возвращает элемент по заданому индексу
@@ -12,47 +17,90 @@
   | suc x, 0 => false
   | suc x, suc y => x < y
 
-\func at => {?}
+\func a (n : Nat) : n < 0 = false \elim n
+  | 0 => idp
+  | suc n1 => idp
+
+\func at {A : \Type} (xs : List A) (n : Nat) (p : T (n < length xs)) : A \elim xs,n
+  | List.nil, 0 => absurd p
+  | List.nil, suc n => absurd p
+  | List.cons a xs, 0 => a
+  | List.cons _ xs, suc n => at xs n p
 
 -- 2. Реализуйте аналоги функции replicate для vec и Vec
 --    (эта функция создает список заданной длины, состоящий из повторений данного элемента)
 
+\func replicate {A : \Type} (n : Nat) (v : A) : Vec A n \elim  n
+  | 0 => nil
+  | suc n => cons v (replicate n v)
+
 -- 3. Реализуйте аналоги функции map для vec и Vec
+
+\func mapv {n : Nat} {A B : \Type} (f : A -> B) (xs : Vec A n) : Vec B n \elim n, xs
+  | 0, nil => nil
+  | suc n, cons a xs => cons (f a) (mapv f xs)
 
 -- 4. Реализуйте аналоги функции zipWith для vec и Vec
 --    Функция должна принимать вектора одинаковой длины
+
+\func zipWithv {n : Nat} {A B : \Type} (xs : Vec A n) (ys : Vec B n) : Vec (\Sigma A B) n \elim n,xs,ys
+  | 0, nil, nil => nil
+  | suc n, cons x xs, cons y ys => cons (x,y) (zipWithv xs ys)
 
 -- 5. Определите тип CTree A n полных бинарных деревьев высоты ровно n,
 --    которые хранят элементы только во внутренних узлах, но не в листьях
 --    Высота листа равна 0
 
-\data CTree (A : \Type) (n : Nat)
+\data CTree (A : \Type) (n : Nat) \elim n
+  | 0 => cleaf
+  | suc n => ctCon A (CTree A n) (CTree A n)
 
 -- 6. Определите тип Tree A n бинарных деревьев высоты не больше n,
 --    которые хранят элементы только во внутренних узлах, но не в листьях
 --    Высота листа равна 0
 
-\data Tree (A : \Type) (n : Nat)
+\data Tree (A : \Type) (n : Nat) \elim n
+  | 0 => tLeaf'
+  | suc n => tLeaf
+  | suc n => tCon A (Tree A n) (Tree A n)
+
+
+\func tree-test1 => tCon {_} {1000} 10 tLeaf (tCon 0 tLeaf tLeaf)
+\func tree-test2 => tCon {_} {1} 10 tLeaf (tCon 0 tLeaf' tLeaf') -- D:
 
 -- Определите функцию, возвращающую высоту дерева
 
-\func height {A : \Type} (n : Nat) (t : Tree A n) : Fin (suc n) => {?}
+\func height {A : \Type} (n : Nat) (t : Tree A n) : Fin (suc n) \elim n, t
+  | 0, tLeaf' => fzero
+  | suc n, tLeaf => fzero
+  | suc n, tCon a t1 t2 =>
+    \let
+      | t1Height => height n t1
+      | t2Height => height n t2
+      | lhsHeight => toNat $ t1Height
+      | rhsHeight => toNat $ t2Height
+    \in
+      if (lhsHeight < rhsHeight) (fsuc (height n t2)) (fsuc (height n t1))
 
 -- Optional task
 -- 7. Функции Fin n -> A соответствуют спискам элементов A длины n
 --    Функция, преобразующая Vec A n в Fin n -> A, была реализована на лекции
 --    Реализуйте обратную функцию
 
-\func coin {A : \Type} {n : Nat} (f : Fin n -> A) : Vec A n => {?}
+\func coin {A : \Type} {n : Nat} (f : Fin n -> A) : Vec A n \elim n
+  | 0 => nil
+  | suc n => cons (f fzero) (coin (\lam nn => f (fsuc nn))) -- oh.
 
 -- Optional task
 -- 8. Определите тип матриц и ряд функций над ними
 
-\func Mat (A : \Type) (n m : Nat) : \Type => {?}
+\func Mat (A : \Type) (n m : Nat) : \Type => Vec (Vec A n) m
 
 -- Диагональная матрица с элементами e на диагонали и z на остальных позициях
 
 \func diag {A : \Type} (z e : A) (n : Nat) : Mat A n n => {?}
+-- \elim n | 0 => nil
+--   | suc n => cons (cons e (replicate n z)) (replicate n z)
 
 -- Транспонирование матриц
 
@@ -68,7 +116,24 @@
 
 -- 9. Определите факториал через Nat-rec
 
+\func fac-Nat-rec (n : Nat) : Nat => Nat-rec _ 1 (\lam s p => if (s < 1) 1 s Nat.* p) (suc n)
+
+\func facTest1 : fac-Nat-rec 1 = 1 => idp
+\func facTest2 : fac-Nat-rec 2 = 2 => idp
+\func facTest3 : fac-Nat-rec 5 = 120 => idp
+
 -- 10. Докажите ассоциативность сложения для натуральных чисел через Nat-elim
+
+-- Элиминатор для Nat
+-- \func Nat-elim (P : Nat -> \Type)
+--                (z : P zero)
+--                (s : \Pi (n : Nat) -> P n -> P (suc n))
+--                (x : Nat) : P x
+\func +-assoc-Nat-elim (x y z : Nat) : (x Nat.+ y) Nat.+ z = x Nat.+ (y Nat.+ z) => Nat-elim
+    (\lam n => (n Nat.+ y) Nat.+ z = n Nat.+ (y Nat.+ z))
+    idp
+    (\lam _ p => pmap suc p)
+    x
 
 -- 11. Определите рекурсор и элиминатор для D
 
@@ -76,6 +141,21 @@
   | con1 Nat
   | con2 D D
   | con3 (Nat -> D)
+
+\func D-elim (P : D -> \Type)
+             (c1 : \Pi (n : Nat) -> P (con1 n))
+             (c2 : \Pi (d1 d2 : D) -> P (con2 d1 d2))
+             (c3 : \Pi (f : Nat -> D) -> P (con3 f))
+             (x : D) : P x \elim x
+  | con1 n => c1 n
+  | con2 d1 d2 => c2 d1 d2
+  | con3 f => c3 f
+
+\func D-rec (P : \Type)
+  (c1 : Nat -> P)
+  (c2 : D -> D -> P)
+  (c3 : (Nat -> D) -> P)
+  (x : D) : P => D-elim (\lam _ => P) c1 c2 c3 x
 
 {- Для проверки, что определения D-elim и D-rec верные, вы можете попробовать определить foo через D-rec
 \func foo (d : D) : Nat
@@ -86,13 +166,23 @@
 
 -- 12. Определите рекурсор и элиминатор для List
 
+\func List-elim {A : \Type}
+                (P : List A -> \Type)
+                (cNil : P List.nil)
+                (cSuc : \Pi (v : A) (xs : List A) -> P (List.cons v xs))
+                (x : List A) : P x \elim x
+  | List.nil => cNil
+  | List.cons a xs => cSuc a xs
+
 -- 13. Докажите pmap при помощи паттерн матчинга с idp
 
-\func pmap {A B : \Type} (f : A -> B) {a a' : A} (p : a = a') : f a = f a' => {?}
+\func pmap {A B : \Type} (f : A -> B) {a a' : A} (p : a = a') : f a = f a' \elim p
+  | idp => idp
 
 -- 14. Докажите pmap2 при помощи паттерн матчинга с idp
 
-\func pmap2 {A B C : \Type} (f : A -> B -> C) {a a' : A} (p : a = a') {b b' : B} (q : b = b') : f a b = f a' b' => {?}
+\func pmap2 {A B C : \Type} (f : A -> B -> C) {a a' : A} (p : a = a') {b b' : B} (q : b = b') : f a b = f a' b' \elim  p,q
+  | idp, idp => idp
 
 -- Optional task
 -- 15. У оператора J есть другая форма, которую мы будем называть Jalt
