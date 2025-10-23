@@ -109,7 +109,7 @@
 
 -- почему это работает..
 -- как он понимает, что у x должен быть тип \Type
-\func repl {A B : \Type} (p : A = B) (a : A) : B => transport (\lam x => {?}) p {?}
+\func repl {A B : \Type} (p : A = B) (a : A) : B => transport (\lam x => x) p a
 
 
 -- Определите transport через repl и pmap
