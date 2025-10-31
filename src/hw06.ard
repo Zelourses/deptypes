@@ -1,29 +1,65 @@
+\import Data.Bool
+\import Data.Maybe
+\import Function.Meta
 \import Logic
+\import Meta
+\import Paths
+\import Paths.Meta
+\import hw01 (gcd)
 \import lect06
 
 -- 1. Определите функцию swap несколькими способами
 
 -- При помощи \cowith и доступа к полям
-\func swap {A B : \Type} (p : Pair A B) : Pair B A => {?}
+\func swap {A B : \Type} (p : Pair A B) : Pair B A \cowith
+  | fst_ => p.snd_
+  | snd_ => p.fst_
 
 -- При помощи \new и паттерн матчинга
-\func swap' {A B : \Type} (p : Pair A B) : Pair B A => {?}
+\func swap' {A B : \Type} (p : Pair A B) : Pair B A \elim p
+  | (a,b) => \new Pair {
+    | fst_ => b
+    | snd_ => a
+    -- не обязательно
+    | A => _
+    | B => _
+  }
 
 -- При помощи \new и доступа к полям
-\func swap'' {A B : \Type} (p : Pair A B) : Pair B A => {?}
+\func swap'' {A B : \Type} (p : Pair A B) : Pair B A => \new Pair {
+  | fst_ => p.snd_
+  | snd_ => p.fst_
+  -- не обязательно
+  | A => p.B
+  | B => p.A
+}
 
 -- 2. Докажите, что swap (swap p) = p
 
-\func swap-involutive {A B : \Type} (p : Pair A B) : swap (swap p) = p => {?}
+\func swap-involutive {A B : \Type} (p : Pair A B) : swap (swap p) = p
+  => \case p, idp : swap p = swap p \with {
+    | (a,b), _x => transportInv (\lam b => swap b = swap b) _x idp -- mmmmmmm
+  }
+
+\func swap-involutive' {A B : \Type} (p : Pair A B) : swap (swap p) = p => path \lam _ => p -- лучше?
 
 -- 3. Докажите, что тип PosNat 0 пустой, а тип PosNat 1 нет
 
-\func zero-isNotPos (p : PosNat 0) : Empty => {?}
+\lemma zero-isNotPos (p : PosNat 0) : Empty => p.p
 
-\func one-isPos : PosNat 1 => {?}
+
+\func one-isPos : PosNat 1 => \new PosNat 1 ()
 
 -- 4. Определите \record, состоящий из пар взаимно простых натуральных чисел
 --    Определите тип, состоящий из натуральных чисел, взаимно простых с 60
+
+\record Co-prime (lhs rhs : Nat) (p : So (Nats-coprime lhs rhs))
+
+\func Nats-coprime (l r : Nat) : Bool => \case  gcd l r \with {
+  | 0 => false
+  | 1 => true
+  | suc n => false
+}
 
 -- 5. Закончите определение класса монад
 --    Этот класс должен содержать все монадные законы и реализовывать все поля из класса функторов
@@ -31,8 +67,54 @@
 \class Monad \extends Functor
   | return {A : \Type} : A -> F A
   | \infixl 2 >>= {A B : \Type} : F A -> (A -> F B) -> F B
+  | >>=-left-id {A B : \Type} (a : A) (f : A -> F B) : (return a >>= f) = f a
+  | >>=-right-id {A : \Type} (xs : F A) : xs >>= return = xs
+  | >>=-assoc {A B C : \Type} (xs : F A) (f : A -> F B) (g : B -> F C) : (xs >>= f) >>= g = xs >>= (\lam x => f x >>= g)
+--   | >>=-assoc2 {A B C : \Type} (xs : F A) (f : A -> F B) (g : B -> F C) : (xs >>= f) >>= g = xs >>= f >>= g
+  | fmap a->b fa => fa Monad.>>= (\lam a => return (a->b a))
+  | fmap-id xs => unfold (Monad.>>=-right-id xs)
+  -- fmap-comp {A B C : \Type} (f : B -> C) (g : A -> B) (x : F A) : fmap (\lam a => f (g a)) x = fmap f (fmap g x)
+  -- xs >>= (\lam a => return (f (g a))) = xs >>= (\lam a => return (g a)) >>= (\lam a => return (f a))
+--   | fmap-comp f g xs =>
+--     fmap (\lam a => f (g a)) xs ==< {?} >==
+-- --     (xs >>= (\lam a => return (f (g a)))) ==< pmap (`>>= (\lam a => return (f (g a)))) (inv (>>=-right-id xs)) >==
+--     (xs >>= (\lam a => return (f (g a)))) ==< pmap (xs >>=) ({?}) >==
+--     (xs >>= (\lam a => (\lam xxx => return (g xxx)) a >>= (\lam aaa => return (f aaa)))) ==< {?} >==
+--     {?} ==< {?} >==
+--     {?} ==< {?} >==
+--     fmap f (fmap g xs) `qed
+
+
+\func test1 (f g : \Type -> \Type) (p : f = g) : (\lam a => f a) = (\lam a => g a) => p
 
 -- 6. Определите \instance Monad для Maybe
+
+\instance MaybeMonad : Monad Maybe
+  | return => Maybe.just
+  | >>= val func => \case val \with {
+    | nothing => nothing
+    | just a => func a
+  }
+  | >>=-left-id _ _ => idp
+  | >>=-right-id xs => cases xs \with {
+    | nothing => idp
+    | just a => idp
+  }
+  -- должен быть другой путь для того, чтобы это доказать..
+  | >>=-assoc xs f g => cases (xs) \with {
+    | nothing => idp
+    | just a => cases (f a) \with {
+      | nothing => idp
+      | just a1 => cases (g a1) \with {
+        | nothing => idp
+        | just a2 => idp
+      }
+    }
+  }
+  | fmap-comp _ _ x => cases x \with {
+    | nothing => idp
+    | just a => idp
+  }
 
 -- 7. Определите \instance Monad для State и State'
 
@@ -41,3 +123,41 @@
 
 \data State' (S A : \Type)
   | state' (S -> \Sigma S A)
+
+\instance StateMonad (S : \Type) : Monad (State S)
+  | return a => \new State {
+    | state => \lam s => (s, a)
+  }
+  | >>= val f => \new State {
+    | state => \lam s =>
+    \let (s', a) => state {val} s
+    \in state {f a} s'
+  }
+  | >>=-left-id _ _ => idp
+  | >>=-right-id _ => idp
+  | >>=-assoc _ _ _ => idp
+  | fmap-comp _ _ _ => idp
+
+\instance State'Monad (S : \Type) : Monad (State' S)
+  | return a => state' (\lam s => (s,a))
+  | >>= val f => state' (\lam s => \case val \with {
+    | state' s->sigmaSA => \let (s', a) => s->sigmaSA s \in \case f a \with {
+      | state' s->sigmaSB => s->sigmaSB s'
+    }
+  })
+--   | >>= (state' s->sigmaSA) f => state' (\lam s =>
+--     \let | (s', a) => s->sigmaSA s
+--          | (state' s->sigmaSB) => f a
+--     \in s->sigmaSB s')
+  | >>=-left-id a f =>  cases (f a) \with {
+    | state' _x => idp
+  }
+  | >>=-right-id xs => cases xs \with {
+    | state' _x => idp
+  }
+  | >>=-assoc xs f g => cases xs \with {
+    | state' _x => pmap state' {?} -- недоказываемо...
+  }
+  | fmap-comp f g x => cases x \with {
+    | state' _x => idp
+  }
