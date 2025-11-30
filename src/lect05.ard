@@ -179,6 +179,13 @@
                 (p : f.1 = g.1) (q : transport B p f.2 = g.2) : f = g
   => ext (p, q)
 
+-- или через аксиому J
+\func sigmaExt'' {A : \Type} {B : A -> \Type} {t1 t2 : \Sigma (x : A) (B x)}
+                 (p : t1.1 = t2.1) (q : transport B p t1.2 = t2.2) : t1 = t2 \elim t1, t2
+  | (x1, y1), (x2, y2) => Jl
+      (\lam x p' => \Pi {y : B x} (q' : transport B p' y1 = y) -> (x1, y1) = {\Sigma (x : A) (B x)} (x, y))
+      (\lam q' => path \lam i => (x1, q' i)) p q
+
 
 -- 5. Элиминатор для I
 
